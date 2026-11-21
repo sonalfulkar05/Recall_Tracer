@@ -1,366 +1,156 @@
-# RecallTracer 🌐
-### AI-Powered Supply Chain Recall Investigation & Traceability System
+# RecallTracer
 
-**Built for the WeMakeDevs Graph Hacks 2026 Hackathon | Powered by FalkorDB**
+RecallTracer is a graph-powered product incident and recall investigation demo. It combines supply-chain provenance with retailer operations data so investigators can trace reported batches to ingredient lots, assess downstream exposure, and coordinate store actions with a human confirmation gate.
 
-RecallTracer is an AI-assisted supply chain recall investigation system that uses graph databases and intelligent agents to trace contaminated ingredients across complex supply chains, identify affected products and batches, and coordinate targeted product recalls across retail stores.
+## What it demonstrates
 
-Instead of manually investigating disconnected supplier, manufacturing, and retail records, RecallTracer uses **FalkorDB's graph-based relationships** to perform multi-hop investigations and determine the potential impact of a contaminated ingredient.
+- **Multi-hop provenance:** follow ingredient lots through intermediate mixes to finished product batches.
+- **Evidence-based attribution:** rank candidate lots using complaint coverage and specificity, helping distinguish a shared cause from a ubiquitous ingredient.
+- **Organizational memory:** save human-confirmed findings and reuse them for later complaints. For example, a new Pune complaint for Bhujia batch `BH-2410-03` can trace upstream to `GO-0611`, find its confirmed memory record, and skip candidate ranking.
+- **Downstream exposure:** trace a confirmed lot to batches and stores beyond those named in complaints.
+- **Guarded store operations:** require human confirmation before dispatching tasks; check shelf stock and duplicate tasks.
+- **Inspectable agent workflows:** use optional LangGraph chat to observe the Investigator and Store Operations agents calling typed tools.
 
-The system combines graph-powered investigation, AI-assisted reasoning, human approval, and automated store-level recall task generation to make product recalls faster, more traceable, and more organized.
+The project is a local demonstration and uses seeded example data. It is not a production recall-management system.
 
----
+## Architecture
 
-## 🎯 Problem Statement
+RecallTracer uses two FalkorDB graphs joined by batch identifiers:
 
-Modern supply chains involve multiple suppliers, ingredients, manufacturing batches, finished products, distributors, and retail stores.
+| Graph | Example data |
+| --- | --- |
+| `network` | Suppliers, ingredient lots, intermediate mixes, finished batches, products, and supplier notices |
+| `bazaarmart` | Stores, complaints, delivered batches, shelf stock, findings, associates, and pull tasks |
 
-When a contaminated ingredient is discovered, identifying all affected products and determining where they have been distributed becomes a challenging task.
+Python tools run parameterized Cypher queries and deterministic scoring. LangGraph agents orchestrate the tools and communicate findings; they do not invent graph relationships or authorize physical store actions.
 
-Traditional systems often struggle with:
-- Tracing ingredients across multiple levels of a supply chain.
-- Identifying every affected product and manufacturing batch.
-- Determining which retail stores contain affected stock.
-- Preventing unnecessary recalls caused by incorrect matches.
-- Coordinating recall operations across multiple stores.
+## Requirements
 
-**RecallTracer addresses these challenges through graph-based supply chain intelligence.**
+- Docker Desktop or another Docker Engine
+- Python 3.11 for local setup
+- FalkorDB, started with Docker Compose below
+- An OpenAI-compatible model provider only if you want to use agent chat
 
----
+## Quick start
 
-## 💡 Our Solution
+### 1. Start FalkorDB
 
-RecallTracer creates an interconnected supply chain knowledge graph using FalkorDB.
+From the project root:
 
-When a recall notice is received, the system:
-
-1. Investigates the reported ingredient or contaminated lot.
-2. Traces its relationships with manufacturing batches and finished products.
-3. Identifies potentially affected retail inventory.
-4. Presents investigation findings for human confirmation.
-5. Generates store-level product removal tasks.
-6. Tracks recall operations through linked graph records.
-
-The system uses two specialized AI agents to separate investigation from operational execution.
-
----
-
-## ✨ Key Features
-
-### 1. Graph-Based Supply Chain Mapping
-- Represents suppliers, ingredient lots, products, and manufacturing batches as graph nodes.
-- Maintains relationships between different supply chain entities.
-- Uses FalkorDB to perform multi-hop graph traversal.
-- Supports investigation across interconnected supply chain records.
-
-### 2. AI-Powered Investigation Agent
-The Investigator Agent:
-- Analyzes recall notices.
-- Identifies relevant ingredient lots.
-- Traces affected batches and finished products.
-- Checks previous investigation findings.
-- Retrieves connected graph paths to support its conclusions.
-
-### 3. Store Operations Agent
-The Store Ops Agent:
-- Checks affected products across retail stores.
-- Examines available stock.
-- Checks existing recall tasks.
-- Generates store-specific product removal tasks.
-- Writes operational updates back into the graph.
-
-### 4. Human-in-the-Loop Approval
-RecallTracer incorporates a human confirmation step before operational recall tasks are generated.
-
-This helps prevent false-positive investigations from directly triggering unnecessary product removal operations.
-
-### 5. Graph-Based Memory and Traceability
-- Stores investigation findings as connected graph records.
-- Maintains relationships between recall notices, batches, products, and store tasks.
-- Enables previously recorded findings to be considered during subsequent investigations.
-
-### 6. Interactive Visualization
-The Streamlit interface provides a way to explore the supply chain investigation and visualize connected graph entities and relationships.
-
----
-
-## 🏗️ System Architecture
-
-RecallTracer uses two interconnected FalkorDB graphs:
-
-**1. Network Graph**
-
-Represents the upstream supply chain.
-
-Entities include:
-- Suppliers
-- Ingredient Lots
-- Products
-- Manufacturing Batches
-- Recall Notices
-
-**2. BazaarMart Graph**
-
-Represents downstream retail operations.
-
-Entities include:
-- Stores
-- Sections
-- Locations
-- Associates
-- Customers
-- Purchases
-- Batch References
-- Stock Records
-- Recall Tasks
-
-The two graphs are connected logically through batch references, allowing the system to trace an ingredient from its supplier through manufacturing and into retail inventory.
-
-### Investigation Workflow
-
-```mermaid
-flowchart TD
-    A[Recall Notice] --> B[Investigator Agent]
-    B --> C[Identify Ingredient Lot]
-    C --> D[Multi-hop Graph Traversal]
-    D --> E[Find Affected Batches]
-    E --> F[Identify Products and Stores]
-    F --> G[Present Investigation Findings]
-    G --> H{Human Confirmation}
-    H -->|Approved| I[Store Ops Agent]
-    H -->|Rejected| J[Stop Recall Execution]
-    I --> K[Check Store Inventory]
-    K --> L[Generate Store Pull Tasks]
-    L --> M[Write Tasks Back to FalkorDB]
+```powershell
+docker compose up -d falkordb
 ```
 
----
+FalkorDB listens on `localhost:6379`; its browser interface is available at [http://localhost:3000](http://localhost:3000).
 
-## 🛠️ Technology Stack
+### 2. Create a Python environment and install dependencies
 
-| Technology | Purpose |
-|---|---|
-| Python | Core application development |
-| FalkorDB | Graph database and relationship traversal |
-| Cypher | Graph querying and investigation |
-| LangGraph | Agent orchestration and workflow management |
-| Qwen3 | Local LLM for AI-assisted reasoning |
-| LM Studio | Local LLM execution |
-| Streamlit | Interactive application interface |
-| streamlit-agraph | Graph visualization |
-| Docker | FalkorDB containerization |
+For Conda on Windows:
 
----
-
-## 🔍 Example Use Case: Groundnut Oil Contamination
-
-Consider a scenario where a particular groundnut ingredient lot, `GN-2214`, is reported as contaminated.
-
-RecallTracer investigates the supply chain to determine the potential impact.
-
-**Step 1 – Investigation**
-
-The Investigator Agent identifies the groundnut lot and explores its connected relationships in FalkorDB.
-
-**Step 2 – Impact Analysis**
-
-The graph traversal identifies:
-- Manufacturing batches associated with the ingredient.
-- Finished products containing the ingredient.
-- Retail batch references.
-- Stores holding potentially affected inventory.
-
-**Step 3 – Human Confirmation**
-
-The investigation findings are presented for human review before recall operations proceed.
-
-**Step 4 – Store Operations**
-
-After confirmation, the Store Ops Agent checks inventory and generates product removal tasks for affected stores.
-
-**Step 5 – Graph Writeback**
-
-The generated recall tasks are stored as linked graph records, allowing operational status to be tracked.
-
----
-
-## 📊 Demo Dataset
-
-RecallTracer uses seeded demonstration data to simulate a connected supply chain and retail environment.
-
-| Dataset | Seeded records |
-|---|---:|
-| Suppliers | 20 |
-| Ingredient Lots | 90 |
-| Products | 60 |
-| Manufacturing Batches | 300 |
-| Recall Notices | 1 |
-| Retail Stores | 12 |
-| Store Sections | 72 |
-| Store Locations | 216 |
-| Associates | 70 |
-| Customers | 1,500 |
-| Purchases | 12,000 |
-| Batch References | 300 |
-
-These interconnected records demonstrate how a single contaminated ingredient can affect multiple products and retail locations.
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-Make sure you have the following installed:
-
-- Python 3.11
-- Docker Desktop
-- FalkorDB
-- LM Studio
-- Git
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/sonarsushant/recall-tracer.git
-
-cd recall-tracer
+```powershell
+conda create -y -n recall python=3.11
+conda activate recall
+pip install -r requirements.txt
 ```
 
-### 2. Create a Virtual Environment
+Alternatively, create and activate a Python 3.11 virtual environment, then install `requirements.txt`.
 
-```bash
-python -m venv recalltracer
+### 3. Configure environment variables
+
+Copy the example configuration:
+
+```powershell
+Copy-Item .env.example .env
 ```
 
-Activate it on Windows:
+The example uses LM Studio. Start its local server, load the configured model, and set the endpoint/model if your local setup differs:
 
-```bash
-recalltracer\Scripts\activate
+```env
+FALKOR_HOST=localhost
+FALKOR_PORT=6379
+LLM_PROVIDER=lm_studio
+LM_STUDIO_BASE_URL=http://localhost:1234/v1
+LM_STUDIO_MODEL=qwen/qwen3-4b-2507
 ```
 
-### 3. Install Dependencies
+To use OpenAI instead, set `LLM_PROVIDER=openai`, `OPENAI_MODEL` (optional; defaults to `gpt-4o-mini`), and `OPENAI_API_KEY`. Keep credentials in `.env`; do not commit them. The scripted demo and evaluation suite do not require an LLM API key.
 
-```bash
-python -m pip install -r requirements.txt
+### 4. Seed the demo graphs
+
+```powershell
+python scripts/seed_clean.py
 ```
 
-### 4. Start FalkorDB
+> **Note:** This seed script clears and recreates the `network` and `bazaarmart` graphs. Run it only against the local demo database when it is safe to replace their contents.
 
-Start your FalkorDB Docker container and ensure that the database is accessible on port `6379`.
+Optional graph inspection:
 
-### 5. Configure the Local LLM
+```powershell
+python scripts/check_graphs.py
+```
 
-- Open LM Studio.
-- Load the Qwen3 model.
-- Start the local inference server.
-- Configure the application to use the local model endpoint.
+### 5. Run the application
 
-### 6. Start the Application
+Start the agent and graph-visualization interface:
 
-Run the Streamlit application using the appropriate application entry point:
-
-```bash
+```powershell
 streamlit run app.py
 ```
 
-For agent development and debugging, the project also uses LangGraph development tooling.
+Open [http://localhost:8501](http://localhost:8501). This page includes agent chat, a quick forward-trace tool, and live complaint, graph, and task views. Agent chat requires the configured model provider.
 
-Refer to `SETUP.md` for the complete environment configuration and setup instructions.
+To run the scripted demo and scenario runner in another terminal:
 
----
-
-## 📁 Project Structure
-
-```text
-recall-tracer/
-│
-├── agents.py
-├── app.py
-├── app_agent.py
-├── investigator.py
-├── graph_view.py
-├── eval.py
-│
-├── queries/
-│   └── *.cypher
-│
-├── scripts/
-│
-├── langgraph.json
-├── requirements.txt
-├── Dockerfile
-├── docker-compose.yml
-│
-├── SETUP.md
-└── DEMO_WORKFLOW.md
+```powershell
+conda activate recall
+streamlit run app_demo_scripted.py --server.port 8502
 ```
 
----
+Open [http://localhost:8502](http://localhost:8502). The deterministic scenario runner works without an LLM; its optional **LangGraph Agent Chat** section requires the configured model provider. LangGraph Studio is optional; start it with `langgraph dev` if you want to inspect the agent execution graph.
 
-## 🧪 Evaluation & Hackathon Results
+## Try the scenarios
 
-RecallTracer was evaluated as part of the WeMakeDevs Graph Hacks 2026 hackathon.
+The main app includes presets for:
 
-**Final Score: 15/30**
+- **Groundnut-oil outbreak:** three complaints across Thane and Pune; compare direct and multi-hop lot attribution.
+- **Salt-only complaints:** demonstrate low-specificity candidate rejection.
+- **Supplier notice:** check a lot for downstream use.
+- **Unknown lot typo:** demonstrate entity resolution without proceeding on an unknown identifier.
+- **Memory replay:** after saving a confirmed finding for the outbreak, load **Memory Replay (Pune / BH-2410-03)**. The workflow records the complaint, traces the batch to upstream lots, and checks organizational memory. A match for `GO-0611` reuses the prior confirmed finding instead of running candidate ranking again.
+- **Forward trace:** inspect products and stores downstream of an ingredient lot.
 
-| Evaluation Criteria | Score |
-|---|---:|
-| Use of FalkorDB | 6/10 |
-| Agent Effectiveness | 3/5 |
-| Explainability and Provenance | 2/5 |
-| Potential Impact | 2/5 |
-| Creativity and Presentation | 2/5 |
-| **Total** | **15/30** |
+For detailed environment setup, see [SETUP.md](./SETUP.md). View the [project presentation](./presentation/RECALLTRACER_PROJECT_PRESENTATION.html).
 
-### Judge's Feedback
+## Human confirmation and store tasks
 
-The evaluation recognized that:
-- All 7 scripted FalkorDB evaluation checks passed.
-- Multi-hop `USED_IN` queries returned complete node paths.
-- Confirmed findings and store tasks were written back as linked nodes.
-- The human approval gate was enforced in code.
+Investigation and action are separate steps. A confirmed memory match can provide a prior conclusion, but a new investigation is not by itself permission to dispatch store tasks. For a fresh attribution, review the open finding and explicitly confirm the root cause in the UI. Store Operations then checks investigation status, stock availability, and existing tasks before dispatching.
 
-### Areas Identified for Improvement
+## Run the evaluation suite
 
-The judge highlighted several opportunities to strengthen the implementation:
+```powershell
+python eval.py
+```
 
-1. **Graph Algorithm:** Fix the shortest-path call, which was identified as the main technical flaw.
-2. **Agent Evaluation:** Test the actual LangGraph agents rather than relying only on the scripted database workflow.
-3. **Tool Error Handling:** Surface tool errors more clearly.
-4. **LLM Testing:** Evaluate the behavior and reliability of the LLM-powered agents.
-5. **Confirmation Provenance:** Record human confirmation details to improve explainability and auditability.
+The evaluation suite reseeds the demo graphs to a known state, then runs the end-to-end checks, including attribution, false-positive handling, notice investigation, typo resolution, forward tracing, and Pune memory replay. Run it only against the local demo database because seeding replaces graph contents.
 
-The feedback provides a clear direction for making RecallTracer more reliable, explainable, and production-ready.
+## Repository layout
 
----
+| Path | Purpose |
+| --- | --- |
+| `app.py` | Agent UI with graph and task visualizations (port 8501) |
+| `app_demo_scripted.py` | Scripted demo and optional Investigator / Store Operations chat (port 8502) |
+| `agents.py` | LangGraph agent factories and typed tool definitions |
+| `investigator.py`, `store_ops.py` | Deterministic investigation and operational workflows |
+| `tools.py` | FalkorDB access, Cypher-backed tools, scoring, memory, and operational checks |
+| `queries/` | Parameterized Cypher query files |
+| `scripts/seed_clean.py` | Clean seed for both demo graphs |
+| `eval.py` | End-to-end evaluation suite |
+| `SETUP.md` | Detailed environment setup and troubleshooting |
+| `presentation/RECALLTRACER_PROJECT_PRESENTATION.html` | HTML project presentation |
 
-## 🔮 Future Enhancements
+## Troubleshooting
 
-- Improve shortest-path graph traversal.
-- Add comprehensive testing of LangGraph agents.
-- Strengthen agent tool error handling.
-- Maintain detailed human approval and confirmation records.
-- Improve investigation provenance and audit trails.
-- Introduce more advanced recall impact analysis.
-- Support larger and more diverse supply chain datasets.
-- Improve the interactive graph exploration interface.
-
----
-
-## 👥 Team
-
-Built with teamwork and experimentation for **WeMakeDevs Graph Hacks 2026**.
-
----
-
-## ❤️ Acknowledgements
-
-- [FalkorDB](https://www.falkordb.com/) – Graph database powering supply chain relationships and investigations.
-- [LangGraph](https://www.langchain.com/langgraph) – Agent orchestration.
-- [Streamlit](https://streamlit.io/) – Interactive application interface.
-- [LM Studio](https://lmstudio.ai/) – Local LLM execution.
-
----
-
-**RecallTracer – Connecting the Supply Chain. Tracing the Impact. Coordinating the Recall.**
+- **Cannot connect to `localhost:6379`:** verify Docker is running and start FalkorDB with `docker compose up -d falkordb`.
+- **Agent reports missing model configuration:** check `LLM_PROVIDER` and its provider-specific variables in `.env`; for LM Studio, make sure the local server is running and the selected model is loaded.
+- **Port 8501 or 8502 is in use:** choose another port, for example `streamlit run app_demo_scripted.py --server.port 8503`.
+- **Missing Python module:** activate the project environment and run `pip install -r requirements.txt`.
